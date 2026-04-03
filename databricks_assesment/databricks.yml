@@ -1,0 +1,52 @@
+# Databricks Asset Bundle for Retail Data Pipeline
+# Multi-environment deployment: dev, uat, prod
+# See https://docs.databricks.com/dev-tools/bundles/index.html for documentation.
+
+bundle:
+  name: retail_pipeline
+  uuid: 0f53aa18-dd62-4a39-a9aa-b49d2b4d7f9d
+
+include:
+  - resources/*.yml
+
+# Variable declarations for environment-specific configuration
+variables:
+  catalog:
+    description: The catalog to use (1_dev, 1_uat, or 1_prod)
+  environment:
+    description: The environment name (dev, uat, or prod)
+
+targets:
+  # Development environment
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://dbc-9bb91c66-a0e1.cloud.databricks.com
+      root_path: /Workspace/Users/singhsir789@gmail.com/.bundle/${bundle.name}/dev
+    variables:
+      catalog: 1_dev
+      environment: dev
+  
+  # UAT/QA environment
+  uat:
+    mode: development
+    workspace:
+      host: https://dbc-9bb91c66-a0e1.cloud.databricks.com
+      root_path: /Workspace/Users/singhsir789@gmail.com/.bundle/${bundle.name}/uat
+    variables:
+      catalog: 1_uat
+      environment: uat
+  
+  # Production environment
+  prod:
+    mode: production
+    workspace:
+      host: https://dbc-9bb91c66-a0e1.cloud.databricks.com
+      root_path: /Workspace/Users/singhsir789@gmail.com/.bundle/${bundle.name}/prod
+    variables:
+      catalog: 1_prod
+      environment: prod
+    permissions:
+      - user_name: singhsir789@gmail.com
+        level: CAN_MANAGE

@@ -1,0 +1,81 @@
+name: Deploy Databricks Pipeline
+
+on:
+  push:
+    branches:
+      - main        # Deploy to prod
+      - develop     # Deploy to dev
+      - uat         # Deploy to uat
+  pull_request:
+    branches:
+      - main        # Validate before merging to prod
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install Databricks CLI
+        run: |
+          pip install databricks-cli
+      
+      - name: Determine target environment
+        id: env
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "target=prod" >> $GITHUB_OUTPUT
+            echo "Deploying to PRODUCTION"
+          elif [[ "${{ github.ref }}" == "refs/heads/uat" ]]; then
+            echo "target=uat" >> $GITHUB_OUTPUT
+            echo "Deploying to UAT"
+          elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            echo "target=dev" >> $GITHUB_OUTPUT
+            echo "Deploying to DEVELOPMENT"
+          else
+            echo "target=dev" >> $GITHUB_OUTPUT
+            echo "Defaulting to DEVELOPMENT"
+          fi
+      
+      - name: Validate Asset Bundle
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          cd databricks_assesment
+          databricks bundle validate -t ${{ steps.env.outputs.target }}
+      
+      - name: Deploy Asset Bundle
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          cd databricks_assesment
+          databricks bundle deploy -t ${{ steps.env.outputs.target }}
+      
+      - name: Run Pipeline (on push only)
+        if: github.event_name == 'push' && steps.env.outputs.target != 'prod'
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          cd databricks_assesment
+          databricks bundle run medallion_pipeline -t ${{ steps.env.outputs.target }}
+      
+      - name: Deployment Summary
+        run: |
+          echo "===========================================" 
+          echo "Deployment Summary"
+          echo "===========================================" 
+          echo "Environment: ${{ steps.env.outputs.target }}"
+          echo "Catalog: 1_${{ steps.env.outputs.target }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "===========================================" 
